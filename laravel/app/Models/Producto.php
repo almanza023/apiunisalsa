@@ -57,6 +57,16 @@ class Producto extends Model
             ->count();
     }
 
+    public static function getProductosPorCategoria()
+    {
+        return self::where('estado', 1)
+            ->orderBy('categoria_id')
+            ->get();
+    }
+
+
+
+
 
 
 }

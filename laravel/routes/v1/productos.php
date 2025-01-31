@@ -12,6 +12,6 @@ use Illuminate\Support\Facades\Route;
         Route::get('productos-activos', [ProductoController::class, 'activos']);
         Route::post('productos-movimientos', [ProductoController::class, 'movimientosInventario']);
         Route::post('productos-detalles', [ProductoController::class, 'postDetalle']);
-
+        Route::get('productos-inventario', [ProductoController::class, 'getProductosInventario']);
 
 ?>

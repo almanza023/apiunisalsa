@@ -330,4 +330,21 @@ class ProductoController extends Controller
         }
 
     }
+
+    public function getProductosInventario()
+    {
+        // Listamos todos los registros activos
+        $productos = $this->model::getProductosPorCategoria();
+        if ($productos) {
+            return response()->json([
+                'code' => 200,
+                'data' => $productos
+            ], Response::HTTP_OK);
+        } else {
+            return response()->json([
+                'code' => 200,
+                'data' => []
+            ], Response::HTTP_OK);
+        }
+    }
 }
