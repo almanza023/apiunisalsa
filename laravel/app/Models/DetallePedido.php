@@ -41,10 +41,11 @@ class DetallePedido extends Model
     return self::select('producto_id',
     DB::raw('SUM(cantidad_entregada) as total_entregadas'),
     DB::raw('SUM(cantidad) as total_cantidad'),
-    DB::raw('SUM(subtotal) as total_subtotal'))
+    DB::raw('SUM(subtotal) as total_subtotal'),
+    'precio')
         ->where('pedido_id', $pedidoId)
-        ->groupBy('producto_id')
-        ->with('producto:id,nombre,precio') // Asegúrate de que el modelo Producto tenga los campos 'id', 'nombre' y 'precio'
+        ->groupBy('producto_id', 'precio')
+        ->with('producto:id,nombre') // Asegúrate de que el modelo Producto tenga los campos 'id' y 'nombre'
         ->get();
     }
 

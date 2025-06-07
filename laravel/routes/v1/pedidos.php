@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
         Route::post('pedidos-cerrados', [PedidoController::class, 'getPedidosCerrados']);
         Route::post('pedidos-filter', [PedidoController::class, 'filter']);
         Route::post('pedidos-cambio-mesa', [PedidoController::class, 'actualizarMesa']);
+        Route::post('pedidos-entrega-todos', [PedidoController::class, 'entregarProductosPedidoTodos']);
 
 
 ?>

@@ -83,6 +83,16 @@ class PedidoController extends Controller
             ], Response::HTTP_OK);
         }
 
+        //Validar que la Comanda Sea Unica
+        $pedido=Pedido::where('comanda', $request->comanda)->first();
+        if(!empty($pedido)){
+            return response()->json([
+                'code' => 400,
+                'isSuccess' => false,
+                'message' => 'Comanda N° '.$request->comanda.' ya Existe',
+                'data'=>[]
+            ], Response::HTTP_OK);
+        }
         // Creamos la mesa en la BD
         $objeto = $this->model::create([
             'user_id' => $request->user_id,
@@ -449,9 +459,11 @@ class PedidoController extends Controller
 
     public function filter(Request $request)
     {
+        $fecha_inicio = !empty($request->fecha_inicio) ? \Carbon\Carbon::parse($request->fecha_inicio)->format('Y-m-d') : null;
+        $fecha_final = !empty($request->fecha_fin) ? \Carbon\Carbon::parse($request->fecha_fin)->format('Y-m-d') : null;
         // Listamos todas las mesas
-        $objeto = $this->model::getFilter($request->fecha_inicio,
-            $request->fecha_fin, $request->user_id, $request->estadopedido_id);
+        $objeto = $this->model::getFilter($fecha_inicio,
+            $fecha_final, $request->user_id, $request->estadopedido_id);
         if ($objeto) {
             return response()->json([
                 'code' => 200,
@@ -472,8 +484,18 @@ class PedidoController extends Controller
         // Listamos todas las mesas
         $objeto = $this->model::find($request->pedido_id);
         if ($objeto) {
-
+            $comanda=$request->comanda;
+            $pedido=Pedido::where('comanda', $comanda)->first();
+            if(!empty($pedido) && $pedido->id != $objeto->id){
+                return response()->json([
+                    'code' => 200,
+                    'isSuccess' => false,
+                    'data' => [],
+                    'message' =>"Comanda N° ".$comanda." ya se encuentra asignada a este Pedido ".$pedido->id
+                ], Response::HTTP_OK);
+            }
             $objeto->mesa_id=$request->mesa_id;
+            $objeto->comanda=$request->comanda;
             $objeto->save();
             return response()->json([
                 'code' => 200,
@@ -489,6 +511,64 @@ class PedidoController extends Controller
                 'message' =>"Error al realizar cambio de mesa",
             ], Response::HTTP_OK);
         }
+    }
+
+    public function entregarProductosPedidoTodos(Request $request)
+    {
+        $response = DB::transaction(function () use ($request) {
+            $data = $request->only('user_id', 'pedido_id');
+            $validator = Validator::make($data, [
+                'user_id' => 'required',
+                'pedido_id' => 'required',
+            ]);
+            $user_id = $request->user_id;
+            $pedido_id = $request->pedido_id;
+            $inventario = false;
+            //Obtener los productos que no han sido entregados
+            $detallesPedido = DetallePedido::where('pedido_id', $pedido_id)
+            ->where('entregado', 0)->get();
+            $descripcion =  "SALIDA";
+            $tipoMovimiento = 2;
+            $totalProductos=0;
+            if (count($detallesPedido)>0) {
+                foreach ($detallesPedido as $objeto) {
+                    $detalle=DetallePedido::find($objeto->id);
+                    $productoId = $objeto->producto_id;
+                    $precioVenta = $objeto->precio;
+                    $detalle->entregado = 1;
+                    $detalle->cantidad_entregada = $objeto->cantidad;
+                    $detalle->save();
+                    $inventario = MovimientoInventario::modificarStock($productoId, $user_id, $objeto->cantidad,
+                    $precioVenta, 0, $descripcion, $tipoMovimiento);
+                    $totalProductos++;
+                }
+                if ($totalProductos>0) {
+                    return [
+                        'code' => 200,
+                        'isSuccess' => true,
+                        'message' => 'Productos Entregados a Mesa Exitosamente '
+                    ];
+                } else {
+                    return [
+                        'code' => 200,
+                        'isSuccess' => false,
+                        'data' => [],
+                        'message' => 'Error al Entregar Productos a la Mesa'
+                    ];
+                }
+
+
+
+            } else {
+                return [
+                    'code' => 200,
+                    'data' => [],
+                    'message' => 'No se encontraron productos Pedidos a la Mesa '
+                ];
+            }
+        });
+
+        return response()->json($response, Response::HTTP_OK);
     }
 
 }

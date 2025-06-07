@@ -150,8 +150,7 @@ class Pedido extends Model
 
     public static function getTotalPedidosAbiertosByCaja($cajaId)
     {
-        return self::where('caja_id', $cajaId)
-                    ->where('estadopedido_id', 1)
+        return self::where('estadopedido_id', 1)
             ->count();
     }
 

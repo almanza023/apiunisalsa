@@ -20,6 +20,7 @@ class Venta extends Model
         'cantidad',
         'observaciones',
         'estado',
+        'especial'
     ];
 
     protected $casts = [
@@ -62,7 +63,17 @@ class Venta extends Model
 
     public static function getTotalByDate($startDate, $endDate, $caja=null)
     {
-        $query = self::where('estado', 1);
+        $query = self::where('estado', 1)->where('especial', 0);
+        if ($caja != null) {
+            $query->where('caja_id', $caja);
+        } else {
+            $query->whereBetween('fecha', [$startDate, $endDate]);
+        }
+        return $query->sum('total');
+    }
+    public static function getTotalEspecialesByDate($startDate, $endDate, $caja=null)
+    {
+        $query = self::where('estado', 1)->where('especial', 1);
         if ($caja != null) {
             $query->where('caja_id', $caja);
         } else {
@@ -71,14 +82,16 @@ class Venta extends Model
         return $query->sum('total');
     }
 
+
     public static function getVentasByDate($startDate, $endDate, $caja_id=null)
     {
-        $query = self::with(['pedido', 'detalles.producto', 'user', 'pagos.tipopago']);
+        $query = self::with(['pedido.user', 'detalles.producto', 'user', 'pagos.tipopago']);
         if ($caja_id != null) {
             $query->where('caja_id', $caja_id);
         } else {
             $query->whereBetween('fecha', [$startDate, $endDate]);
         }
+        $query->where('especial', 0);
         $query->orderByDesc('id');
         return $query->get();
     }
@@ -88,13 +101,13 @@ class Venta extends Model
         $query = VentaTipoPago::selectRaw('tipo_pagos.nombre, SUM(ventas_tipo_pagos.valor) as total')
             ->join('ventas', 'ventas.id', '=', 'ventas_tipo_pagos.venta_id')
             ->join('tipo_pagos', 'tipo_pagos.id', '=', 'ventas_tipo_pagos.tipopago_id')
-            ->whereBetween('ventas.fecha', [$startDate, $endDate])
             ->where('ventas.estado', 1);
-
         if ($caja_id != null) {
             $query->where('ventas.caja_id', $caja_id);
+        }else{
+            $query->whereBetween('ventas.fecha', [$startDate, $endDate]);
         }
-
+        $query->where('ventas.especial', 0);
         return $query->groupBy('tipo_pagos.nombre')->get();
     }
 

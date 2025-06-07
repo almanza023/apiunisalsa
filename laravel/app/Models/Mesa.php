@@ -30,7 +30,7 @@ class Mesa extends Model
 
 public static function mesasConPedidoActivo($estado)
 {
-    return Pedido::select('p.id AS pedido_id', 'm.id', 'm.nombre', 'u.nombre as usuario', 'p.fecha')
+    return Pedido::select('p.id AS pedido_id', 'm.id', 'm.nombre', 'u.nombre as usuario', 'p.fecha', 'p.comanda')
         ->from('pedidos as p')
         ->join('mesas as m', 'm.id', '=', 'p.mesa_id')
         ->join('users as u', 'u.id', '=', 'p.user_id')

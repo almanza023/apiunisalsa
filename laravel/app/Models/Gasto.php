@@ -51,7 +51,10 @@ class Gasto extends Model
         if ($caja != null) {
             $query->where('caja_id', $caja);
         }
-        $query->whereBetween('fecha', [$startDate, $endDate]);
+        if ($startDate != null && $endDate != null) {
+            $query->whereBetween('fecha', [$startDate, $endDate]);
+        }
+        $query->where('tipogasto_id','<>', 1);
         return $query->sum('valortotal');
     }
 
@@ -67,6 +70,23 @@ class Gasto extends Model
         $query->orderByDesc('id');
         return $query->get();
     }
+
+    public static function getTotalNominaByDate($startDate, $endDate, $caja=null)
+    {
+        $query = self::where('estado', 1);
+        if ($caja != null) {
+            $query->where('caja_id', $caja);
+        }
+        if ($startDate != null && $endDate != null) {
+            $query->whereBetween('fecha', [$startDate, $endDate]);
+        }
+        $query->where('tipogasto_id', 1);
+        return $query->sum('valortotal');
+    }
+
+
+    
+
 
 
 

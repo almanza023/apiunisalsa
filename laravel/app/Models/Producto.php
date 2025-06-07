@@ -18,6 +18,7 @@ class Producto extends Model
         'precio',
         'stock_actual',
         'stock_minimo',
+        'cambio_precio',
         'estado'
     ];
 

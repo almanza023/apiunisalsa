@@ -65,6 +65,19 @@ class GastoController extends Controller
             ], Response::HTTP_OK);
         }
 
+        $validarExiste=$this->model::where('caja_id', $caja->id)
+        ->where('tipogasto_id', $request->tipogasto_id)
+        ->where('estado', 1)->count();
+
+        if($validarExiste > 0){
+            return response()->json([
+                'code' => 400,
+                'isSuccess' => false,
+                'message' => 'Ya existe un registro de la NOMINA para el día',
+                'data'=>[]
+            ], Response::HTTP_OK);
+        }
+
         // Creamos el gasto en la BD
         $gasto = $this->model::create([
             'tipogasto_id' => $request->tipogasto_id,

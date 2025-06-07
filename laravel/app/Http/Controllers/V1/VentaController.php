@@ -60,7 +60,7 @@ class VentaController extends Controller
     {
         // Validamos los datos
         $data = $request->only('user_id','fecha', 'pedido_id', 'cliente_id',
-        'total', 'cantidad', 'detalles', 'pagos', 'observaciones', 'propina');
+        'total', 'cantidad', 'detalles', 'pagos', 'observaciones', 'propina', 'especial');
         $validator = Validator::make($data, [
             'user_id' => 'required',
             'fecha' => 'required',
@@ -102,6 +102,7 @@ class VentaController extends Controller
                 'cantidad' => $request->cantidad,
                 'propina' => $request->propina,
                 'observaciones' => $request->observaciones,
+                'especial' => $request->especial,
             ]);
 
             foreach ($request->detalles as $detalle) {

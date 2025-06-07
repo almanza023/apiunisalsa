@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AperturaCaja;
+use App\Models\DetalleVenta;
 use App\Models\Gasto;
 use App\Models\Pedido;
 use App\Models\Producto;
@@ -171,6 +172,16 @@ class CajaController extends Controller
                 'message' => 'No se puede cerrar Caja Existen '.$pedidos.' Pedidos Abiertos, por favor verifique ',
             ], Response::HTTP_OK);
         }
+        //Validar Gasto de Nomina
+        $gastos=Gasto::where('caja_id', $objeto->id)
+        ->where('tipogasto_id', 1)->first();
+        if(empty($gastos)){
+            return response()->json([
+                'code' => 400,
+                'isSuccess' => false,
+                'message' => 'Debe Registrar el Gasto de Nómina del día ',
+            ], Response::HTTP_OK);
+        }
 
 
         // Actualizamos la mesa.
@@ -237,6 +248,15 @@ class CajaController extends Controller
             ], Response::HTTP_OK);
         }
 
+        $pedidos=Pedido::where('caja_id', $objeto->id)->count();
+        if($pedidos){
+            return response()->json([
+                'code' => 200,
+                'isSuccess' => false,
+                'message' => 'NO Se puede Anular la Caja YA Existen Pedidos ordenados',
+            ], Response::HTTP_OK);
+        }
+
         // Cambiamos el estado
         $objeto->estado = 3;
         $objeto->save();
@@ -288,11 +308,16 @@ class CajaController extends Controller
 
         if($caja){
             $totalgastos=Gasto::getTotalByDate($fecha_inicio, $fecha_final, $caja->id);
+            $totalnomina=Gasto::getTotalNominaByDate($fecha_inicio, $fecha_final, $caja->id);
             $totalventas=Venta::getTotalByDate($fecha_inicio, $fecha_final, $caja->id);
             $ventas=Venta::getVentasByDate($fecha_inicio, $fecha_final, $caja->id);
             $gastos=Gasto::getGastosByDate($fecha_inicio, $fecha_final, $caja->id);
             $pagos=Venta::getTotalByTipoPagoAndDate($fecha_inicio, $fecha_final, $caja->id);
-            $totalneto=$totalventas - $totalgastos;
+            $totalneto=$totalventas - ($totalnomina + $totalgastos);
+            $productos=DetalleVenta::getVentasPorCaja($caja->id);
+            $totalEspeciales=Venta::getTotalEspecialesByDate($fecha_inicio, $fecha_final, $caja->id);
+
+
             $estadoCaja = $caja->estado == 3 ? 'ANULADA' : ($caja->estado == 1 ? 'ABIERTA' : 'CERRADA');
             $data=[
                 'caja_id'=>$caja->id,
@@ -301,11 +326,14 @@ class CajaController extends Controller
                 'fecha_inicio'=>$caja->fecha,
                 'base_inicial'=>$caja->monto_inicial,
                 'totalventas'=>$totalventas,
+                'totalnomina'=>$totalnomina,
                 'totalgastos'=>$totalgastos,
                 'totalneto'=>$totalneto,
                 'ventas'=>$ventas,
                 'gastos'=>$gastos,
                 'pagos'=>$pagos,
+                'productos'=>$productos,
+                'totalEspeciales'=>$totalEspeciales,
             ];
         }
         // Devolvemos la respuesta
@@ -397,6 +425,91 @@ class CajaController extends Controller
             'data'=>$data,
         ], Response::HTTP_OK);
     }
+
+    public function getReporteByCaja(Request $request)
+    {
+        // Validación de datos
+        $data = $request->only('caja_id');
+        $validator = Validator::make($data, [
+            'caja_id' => 'required',
+        ]);
+
+        // Si falla la validación error.
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->messages()], 400);
+        }        // Buscamos la mesa
+        $data=[];
+        $caja = AperturaCaja::findOrFail($request->caja_id);
+
+
+        $fecha_inicio=null;
+        $fecha_final=null;
+        if($caja){
+            $totalgastos=Gasto::getTotalByDate($fecha_inicio, $fecha_final, $caja->id);
+            $totalnomina=Gasto::getTotalNominaByDate($fecha_inicio, $fecha_final, $caja->id);
+            $totalventas=Venta::getTotalByDate($fecha_inicio, $fecha_final, $caja->id);
+            $ventas=Venta::getVentasByDate($fecha_inicio, $fecha_final, $caja->id);
+            $gastos=Gasto::getGastosByDate($fecha_inicio, $fecha_final, $caja->id);
+            $pagos=Venta::getTotalByTipoPagoAndDate($fecha_inicio, $fecha_final, $caja->id);
+            $totalneto=$totalventas - ($totalnomina + $totalgastos);
+            $productos=DetalleVenta::getVentasPorCaja($caja->id);
+            $totalEspeciales=Venta::getTotalEspecialesByDate($fecha_inicio, $fecha_final, $caja->id);
+
+
+            $estadoCaja = $caja->estado == 3 ? 'ANULADA' : ($caja->estado == 1 ? 'ABIERTA' : 'CERRADA');
+            $data=[
+                'caja_id'=>$caja->id,
+                'estado_caja'=>$estadoCaja,
+                'estado'=>$caja->estado,
+                'fecha_inicio'=>$caja->fecha,
+                'base_inicial'=>$caja->monto_inicial,
+                'totalventas'=>$totalventas,
+                'totalnomina'=>$totalnomina,
+                'totalgastos'=>$totalgastos,
+                'totalneto'=>$totalneto,
+                'ventas'=>$ventas,
+                'gastos'=>$gastos,
+                'pagos'=>$pagos,
+                'productos'=>$productos,
+                'total_especiales'=>$totalEspeciales,
+            ];
+
+                    // Devolvemos la respuesta
+                return response()->json([
+                    'code' => 200,
+                    'isSuccess' => true,
+                    'data'=>$data,
+                ], Response::HTTP_OK);
+        }else{
+        // Devolvemos la respuesta
+        return response()->json([
+            'code' => 200,
+            'isSuccess' => false,
+            'message' => 'Caja no encontrada',
+        ], Response::HTTP_OK);
+        }
+
+    }
+
+
+    public function getUltimaCajaAbierta()
+    {
+        $caja = AperturaCaja::where('estado', 1)->orderByDesc('id')->first();
+        if($caja){
+            return response()->json([
+                'code' => 200,
+                'isSuccess' => true,
+                'data'=>$caja,
+            ], Response::HTTP_OK);
+        }else{
+            return response()->json([
+                'code' => 200,
+                'isSuccess' => false,
+                'message' => 'No hay cajas abiertas',
+            ], Response::HTTP_OK);
+        }
+    }
+
 
 
 }
